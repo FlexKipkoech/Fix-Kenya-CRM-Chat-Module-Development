@@ -13,7 +13,22 @@ register_activation_hook('slack_chat', 'slack_chat_module_activate');
 register_deactivation_hook('slack_chat', 'slack_chat_module_deactivate');
 
 function slack_chat_module_activate() {
-    // Activation logic if needed
+    // Attempt to run install script to create necessary tables on activation
+    $CI = &get_instance();
+    $install_file = __DIR__ . '/install.php';
+    if (file_exists($install_file)) {
+        try {
+            // include will execute the install.php which returns true on success
+            $result = include $install_file;
+            if ($result !== true) {
+                log_message('error', 'Slack Chat Module: install.php did not return true during activation.');
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'Slack Chat Module: Exception while running install.php: ' . $e->getMessage());
+        }
+    } else {
+        log_message('error', 'Slack Chat Module: install.php not found during activation.');
+    }
 }
 
 function slack_chat_module_deactivate() {
