@@ -14,6 +14,6 @@ class Slack_chat extends AdminController
     public function index()
     {
         $data['title'] = _l('Chat Module Dashboard');
-        $this->load->view('slack_chat/views/dashboard', $data);
+        $this->load->view('slack_chat/admin/dashboard', $data);
     }
 }
