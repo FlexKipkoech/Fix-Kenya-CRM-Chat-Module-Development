@@ -1,0 +1,42 @@
+<?php
+defined('BASEPATH') or exit('No direct script access allowed');
+
+class Chat_model extends CI_Model
+{
+    public function get_channels()
+    {
+        return $this->db->get(db_prefix() . 'chat_channels')->result_array();
+    }
+
+    public function get_messages($channel_id)
+    {
+        $this->db->where('channel_id', $channel_id);
+        $this->db->order_by('created_at', 'ASC');
+        return $this->db->get(db_prefix() . 'chat_messages')->result_array();
+    }
+
+    public function send_message($channel_id, $user_id, $message)
+    {
+        $data = [
+            'channel_id' => $channel_id,
+            'user_id'    => $user_id,
+            'message'    => $message,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->db->insert(db_prefix() . 'chat_messages', $data);
+        return $this->db->insert_id();
+    }
+
+    public function create_channel($name, $description)
+    {
+        $data = [
+            'name'        => $name,
+            'description' => $description,
+            'is_private'  => 0,
+            'created_by'  => get_staff_user_id(),
+            'created_at'  => date('Y-m-d H:i:s'),
+        ];
+        $this->db->insert(db_prefix() . 'chat_channels', $data);
+        return $this->db->insert_id();
+    }
+}
