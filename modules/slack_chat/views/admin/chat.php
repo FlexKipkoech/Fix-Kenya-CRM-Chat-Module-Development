@@ -24,56 +24,38 @@
             <div class="col-md-9">
                 <h4 class="mt-0"><?php if ($active_channel) { $ch = $this->Chat_model->get_channel_by_id($active_channel); echo htmlspecialchars($ch['name']); } else { echo _l('No channel selected'); } ?></h4>
                 <?php if ($active_channel): ?>
-                    <div id="chat-messages" style="height:300px; overflow-y:auto; border:1px solid #ddd; padding:10px; background:#fafafa;">
-                        <?php foreach ($messages as $msg): ?>
-                            <div><strong>User <?php echo $msg['user_id']; ?>:</strong> <?php echo htmlspecialchars($msg['message']); ?> <span class="text-muted" style="font-size:11px;">[<?php echo $msg['created_at']; ?>]</span></div>
-                        <?php endforeach; ?>
+                    <div id="chat-messages" class="chat-messages">
+                        <?php if (empty($messages)): ?>
+                            <div class="text-center text-muted"><?php echo _l('No messages yet. Say hello!'); ?></div>
+                        <?php else: ?>
+                            <?php foreach ($messages as $msg): ?>
+                                <div class="chat-message <?php echo ($msg['user_id'] == get_staff_user_id()) ? 'mine' : 'theirs'; ?>">
+                                    <div class="chat-message-user"><?php echo isset($msg['user_name']) ? htmlspecialchars($msg['user_name']) : 'User ' . $msg['user_id']; ?></div>
+                                    <div class="chat-message-body"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
+                                    <div class="chat-message-time text-muted"><?php echo $msg['created_at']; ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
+                    <div id="typing-indicator" class="text-muted" style="height:18px;margin-top:6px;display:none;">typing...</div>
                     <form id="chat-form" class="mt-2" method="post" action="<?php echo admin_url('slack_chat/send_message'); ?>">
+                        <?php echo form_hidden('channel_id', $active_channel); ?>
                         <div class="input-group">
-                            <input type="hidden" name="channel_id" value="<?php echo $active_channel; ?>">
-                            <input type="text" name="message" class="form-control" placeholder="Type a message..." autocomplete="off" required>
+                            <textarea name="message" id="chat-input" class="form-control" placeholder="Type a message..." rows="2" required></textarea>
                             <span class="input-group-btn">
-                                <button class="btn btn-info" type="submit"><?php echo _l('Send'); ?></button>
+                                <button class="btn btn-info" id="chat-send" type="submit"><?php echo _l('Send'); ?></button>
                             </span>
                         </div>
                     </form>
                     <script>
-                        // AJAX send message
-                        document.getElementById('chat-form').onsubmit = function(e) {
-                            e.preventDefault();
-                            var form = this;
-                            var data = new FormData(form);
-                            fetch(form.action, {
-                                method: 'POST',
-                                body: data,
-                                headers: {'X-Requested-With': 'XMLHttpRequest'}
-                            })
-                            .then(r => r.json())
-                            .then(resp => {
-                                if (resp.success) {
-                                    form.message.value = '';
-                                    loadMessages();
-                                }
-                            });
+                        var slackChatConfig = {
+                            baseUrl: '<?php echo admin_url('slack_chat'); ?>',
+                            channelId: <?php echo (int)$active_channel; ?>,
+                            csrfName: '<?php echo $this->security->get_csrf_token_name(); ?>',
+                            csrfHash: '<?php echo $this->security->get_csrf_hash(); ?>'
                         };
-                        // AJAX load messages
-                        function loadMessages() {
-                            fetch('<?php echo admin_url('slack_chat/get_messages/' . $active_channel); ?>', {
-                                headers: {'X-Requested-With': 'XMLHttpRequest'}
-                            })
-                            .then(r => r.json())
-                            .then(resp => {
-                                var box = document.getElementById('chat-messages');
-                                box.innerHTML = resp.messages.map(function(msg) {
-                                    return `<div><strong>User ${msg.user_id}:</strong> ${msg.message.replace(/</g,'&lt;')} <span class=\"text-muted\" style=\"font-size:11px;\">[${msg.created_at}]</span></div>`;
-                                }).join('');
-                                box.scrollTop = box.scrollHeight;
-                            });
-                        }
-                        // Poll for new messages every 5 seconds
-                        setInterval(loadMessages, 5000);
                     </script>
+
                 <?php else: ?>
                     <div class="alert alert-info"><?php echo _l('Select a channel to start chatting.'); ?></div>
                 <?php endif; ?>
@@ -86,3 +68,7 @@
     .chat-channels-list .channel-item { cursor: pointer; }
     .chat-channels-list .channel-item.active { background: #f0f7ff; border-color: #b6e0fe; }
 </style>
+
+<!-- Module assets -->
+<link rel="stylesheet" href="<?php echo module_dir_url('slack_chat', 'assets/css/chat.css'); ?>">
+<script src="<?php echo module_dir_url('slack_chat', 'assets/js/chat.js'); ?>"></script>

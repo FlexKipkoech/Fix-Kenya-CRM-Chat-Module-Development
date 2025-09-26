@@ -88,11 +88,16 @@ class Slack_chat extends AdminController
     {
         if ($this->input->is_ajax_request()) {
             $channel_id = $this->input->post('channel_id');
-            $message = $this->input->post('message');
+            $message = trim($this->input->post('message'));
             $user_id = get_staff_user_id();
+            if (empty($message) || empty($channel_id)) {
+                echo json_encode(['success' => false, 'error' => 'invalid_input']);
+                return;
+            }
             $msg_id = $this->Chat_model->send_message($channel_id, $user_id, $message);
             if ($msg_id) {
-                echo json_encode(['success' => true, 'id' => $msg_id]);
+                $msg = $this->Chat_model->get_message_with_user($msg_id);
+                echo json_encode(['success' => true, 'message' => $msg]);
             } else {
                 echo json_encode(['success' => false]);
             }
@@ -105,8 +110,40 @@ class Slack_chat extends AdminController
     public function get_messages($channel_id)
     {
         if ($this->input->is_ajax_request()) {
-            $messages = $this->Chat_model->get_messages($channel_id);
+            $limit = (int)$this->input->get('limit') ?: 50;
+            $messages = $this->Chat_model->get_recent_messages($channel_id, $limit);
+            // add user display name if possible
+            foreach ($messages as &$m) {
+                if (isset($m['user_id'])) {
+                    $staff = $this->db->get_where(db_prefix() . 'staff', ['staffid' => $m['user_id']])->row_array();
+                    if ($staff) {
+                        $m['user_name'] = trim($staff['firstname'] . ' ' . $staff['lastname']);
+                    } else {
+                        $m['user_name'] = 'User ' . $m['user_id'];
+                    }
+                }
+            }
             echo json_encode(['messages' => $messages]);
+            return;
+        }
+        show_404();
+    }
+
+    // Poll for messages after a timestamp
+    public function poll_messages($channel_id)
+    {
+        if ($this->input->is_ajax_request()) {
+            $since = $this->input->get('since'); // expected YYYY-MM-DD HH:MM:SS
+            if (empty($since)) {
+                echo json_encode(['success' => false, 'error' => 'missing_since']);
+                return;
+            }
+            $messages = $this->Chat_model->get_messages_after($channel_id, $since);
+            foreach ($messages as &$m) {
+                $staff = $this->db->get_where(db_prefix() . 'staff', ['staffid' => $m['user_id']])->row_array();
+                $m['user_name'] = $staff ? trim($staff['firstname'].' '.$staff['lastname']) : ('User '.$m['user_id']);
+            }
+            echo json_encode(['success' => true, 'messages' => $messages]);
             return;
         }
         show_404();

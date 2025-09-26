@@ -1,0 +1,8 @@
+.chat-messages { height: 400px; overflow-y: auto; border: 1px solid #e5e5e5; padding: 12px; background: #fff; }
+.chat-message { margin-bottom: 12px; max-width: 78%; padding:8px 12px; border-radius:8px; }
+.chat-message.mine { background: #daf5e6; margin-left: auto; text-align: right; }
+.chat-message.theirs { background: #f1f1f1; margin-right: auto; text-align: left; }
+.chat-message-user { font-weight: 600; font-size: 13px; margin-bottom:4px; }
+.chat-message-body { font-size: 14px; }
+.chat-message-time { font-size: 11px; margin-top:6px; }
+#chat-input { resize: none; }

@@ -46,6 +46,59 @@ class Chat_model extends CI_Model
         return $this->db->insert_id();
     }
 
+    /**
+     * Get the most recent messages for a channel (limit newest first, returned oldest->newest)
+     */
+    public function get_recent_messages($channel_id, $limit = 50)
+    {
+        if (!$this->table_exists_or_log('chat_messages')) {
+            return [];
+        }
+        $this->db->where('channel_id', $channel_id);
+        $this->db->order_by('created_at', 'DESC');
+        $this->db->limit($limit);
+        $rows = $this->db->get(db_prefix() . 'chat_messages')->result_array();
+        return array_reverse($rows);
+    }
+
+    /**
+     * Get messages after a given timestamp (YYYY-MM-DD HH:MM:SS) for polling
+     */
+    public function get_messages_after($channel_id, $timestamp)
+    {
+        if (!$this->table_exists_or_log('chat_messages')) {
+            return [];
+        }
+        $this->db->where('channel_id', $channel_id);
+        $this->db->where('created_at >', $timestamp);
+        $this->db->order_by('created_at', 'ASC');
+        return $this->db->get(db_prefix() . 'chat_messages')->result_array();
+    }
+
+    /**
+     * Get single message with user details (if staff table exists)
+     */
+    public function get_message_with_user($message_id)
+    {
+        if (!$this->table_exists_or_log('chat_messages')) {
+            return null;
+        }
+        // try to join staff table for user info
+        $staff_table = db_prefix() . 'staff';
+        if ($this->db->table_exists($staff_table)) {
+            $this->db->select(db_prefix() . "chat_messages.*,")
+                ->select($staff_table . ".staffid as user_id, " . $staff_table . ".firstname, " . $staff_table . ".lastname", false);
+            $this->db->from(db_prefix() . 'chat_messages');
+            $this->db->join($staff_table, $staff_table . '.staffid = ' . db_prefix() . 'chat_messages.user_id', 'left');
+            $this->db->where(db_prefix() . 'chat_messages.id', $message_id);
+            return $this->db->get()->row_array();
+        }
+
+        // fallback: return message only
+        $this->db->where('id', $message_id);
+        return $this->db->get(db_prefix() . 'chat_messages')->row_array();
+    }
+
     public function create_channel($name, $description)
     {
         if (!$this->table_exists_or_log('chat_channels')) {
