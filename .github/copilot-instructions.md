@@ -1,43 +1,47 @@
 # Copilot Instructions for Fix-Kenya-CRM-Chat-Module-Development
+```markdown
+# Copilot Instructions — Slack Chat module
 
-## Overview
-This project is a module for a CRM system, providing a real-time chat feature similar to Slack. It is structured as a CodeIgniter module, with clear separation between controllers, models, and views. The main module is located in `modules/slack_chat/`.
+This repository contains a CodeIgniter module that implements a Slack-like chat for a CRM. The module lives in `modules/slack_chat/` and follows the host CRM's module/hook conventions.
 
-## Architecture
-- **MVC Pattern**: Follows CodeIgniter's MVC structure:
-  - `controllers/Slack_chat.php`: Handles admin routes and access control.
-  - `models/Chat_model.php`: Manages chat data (channels, messages, members) using the database.
-  - `views/admin/dashboard.php`: Admin dashboard UI for the chat module.
-- **Module Entry**: `slack_chat.php` registers the module, hooks into the admin menu, and manages activation/deactivation.
-- **Database Setup**: `install.php` creates required tables (`chat_channels`, `chat_messages`, `chat_members`) using CodeIgniter's DB API and `db_prefix()`.
+Key points for an AI coding agent (be precise and local):
 
-## Key Conventions & Patterns
-- **Database Access**: Always use `db_prefix()` for table names to ensure compatibility with the CRM's naming conventions.
-- **User Context**: Use `get_staff_user_id()` to get the current user and `is_admin()` for access control.
-- **Menu Integration**: Add admin menu items via `app_menu->add_sidebar_menu_item` inside an `admin_init` hook.
-- **Localization**: Use `_l()` for all user-facing strings to support translations.
-- **Activation/Deactivation**: Register hooks with `register_activation_hook` and `register_deactivation_hook` in the module entry file.
+- Architecture & responsibilities
+  - controllers/Slack_chat.php — admin controller (extends AdminController). Gatekeeping: `is_admin()` and `access_denied()` are used.
+  - models/Chat_model.php — DB access. Uses `db_prefix()` for table names and defensive `table_exists_or_log()` checks.
+  - views/admin/*.php — UI (dashboard and chat view). Use `_l()` for translatable strings.
+  - slack_chat.php — module entry: registers `register_activation_hook`, `register_deactivation_hook`, and adds the admin menu via `hooks()->add_action('admin_init', ...)`.
+  - install.php — creates 3 tables: `chat_channels`, `chat_messages`, `chat_members`. It returns true on success and logs errors via `log_message()`.
 
-## Developer Workflows
-- **Install/Upgrade**: Place the module in the `modules/` directory and access the CRM admin panel. The `install.php` script will run automatically if not already installed.
-- **Testing**: No automated tests are present. Manual testing is done via the CRM admin UI.
-- **Debugging**: Use CodeIgniter's logging and error reporting. Check for `exit('No direct script access allowed')` to prevent unauthorized access.
+- Project-specific conventions (strictly follow these)
+  - Always use `db_prefix()` for table names (see `install.php` and `Chat_model`).
+  - Use CRM helpers: `get_instance()`, `admin_url()`, `get_staff_user_id()` for user context.
+  - Localize UI text via `_l('...')`.
+  - Use `hooks()->add_action('admin_init', 'your_init_func')` to hook into admin UI/menu initialization.
 
-## Integration Points
-- **CRM Core**: Relies on CodeIgniter and CRM-specific helpers (e.g., `db_prefix`, `get_instance`, `admin_url`).
-- **Hooks System**: Integrates with the CRM via hooks for menu and lifecycle events.
+- Developer workflows (how to run / test changes)
+  - No build system. To test changes: copy the module into the host CRM's `modules/` folder, then activate the module from the CRM admin modules UI (activation calls `install.php`).
+  - For manual testing: log in as an admin, open Admin -> Chat (menu added by `slack_chat.php`), exercise chat UI and AJAX endpoints (`send_message`, `get_messages`).
+  - Debugging: inspect CRM logs (CodeIgniter `log_message()` output), enable CI debug mode in the CRM, and check web server/PHP error logs if needed.
 
-## Examples
-- **Adding a new chat feature**: Create a new method in `Chat_model.php` and expose it via a controller in `controllers/Slack_chat.php`.
-- **Database migrations**: Add queries to `install.php` for new tables or columns, using `db_prefix()`.
+- Integration & error handling patterns
+  - Activation runs `install.php` via include; the file must return true on success. Errors are logged with `log_message('error', ...)`.
+  - Controllers check `$this->input->is_ajax_request()` for AJAX endpoints and call `show_404()` on invalid access.
+  - Use `access_denied('Slack Chat')` when permission checks fail in controllers.
 
-## References
-- `modules/slack_chat/slack_chat.php`: Module entry and hooks
-- `modules/slack_chat/controllers/Slack_chat.php`: Controller logic
-- `modules/slack_chat/models/Chat_model.php`: Data access
-- `modules/slack_chat/install.php`: Database schema
-- `modules/slack_chat/views/admin/dashboard.php`: Admin UI
+- Small concrete examples you can mimic
+  - Add admin menu item: see `slack_chat.php` -> `app_menu->add_sidebar_menu_item('slack_chat', [...])`.
+  - Create a new channel: `Chat_model::create_channel($name, $description)` — uses `get_staff_user_id()` and `db_prefix()`.
+  - Insert message: `Chat_model::send_message($channel_id, $user_id, $message)` — returns insert id.
 
----
+- What an AI agent must not assume
+  - There are no unit tests or CI targets in this repo. Do not add external services or credentials. Changes must be limited to module code unless instructed otherwise.
 
-If you are unsure about any workflow or convention, review the files above for concrete examples. For CRM-specific helpers and hooks, refer to the CRM's developer documentation.
+Files to inspect when editing behavior:
+- `modules/slack_chat/slack_chat.php` (hooks/activation/menu)
+- `modules/slack_chat/install.php` (DB schema creation)
+- `modules/slack_chat/controllers/Slack_chat.php` (routes/AJAX handlers)
+- `modules/slack_chat/models/Chat_model.php` (DB access patterns)
+
+If anything here is unclear or you need runtime credentials/environment details (how to enable the CRM or where to activate modules), ask the maintainer. Please confirm any assumption before making changes that affect the host CRM or external systems.
+```

@@ -5,18 +5,24 @@
         <hr />
         <div class="row">
             <div class="col-md-3">
-                <h5><?php echo _l('Channels'); ?></h5>
-                <ul class="list-group">
+                <div class="clearfix mbot10">
+                    <h5 class="pull-left"><?php echo _l('Channels'); ?></h5>
+                    <a href="<?php echo admin_url('slack_chat/create_channel'); ?>" class="btn btn-primary btn-sm pull-right" style="margin-top:-6px;"><?php echo _l('Create Channel'); ?></a>
+                </div>
+                <ul class="list-group chat-channels-list">
                     <?php foreach ($channels as $channel): ?>
-                        <li class="list-group-item <?php echo ($active_channel == $channel['id']) ? 'active' : ''; ?>">
-                            <a href="<?php echo admin_url('slack_chat/chat/' . $channel['id']); ?>" style="color:inherit; text-decoration:none;">
+                        <?php $active = ($active_channel == $channel['id']); ?>
+                        <li class="list-group-item <?php echo $active ? 'active' : ''; ?> channel-item" data-id="<?php echo $channel['id']; ?>">
+                            <a href="<?php echo admin_url('slack_chat/chat/' . $channel['id']); ?>" style="color:inherit; text-decoration:none; display:block;">
                                 <?php echo htmlspecialchars($channel['name']); ?>
+                                <div class="text-muted" style="font-size:11px;"><?php echo htmlspecialchars($channel['description']); ?></div>
                             </a>
                         </li>
                     <?php endforeach; ?>
                 </ul>
             </div>
             <div class="col-md-9">
+                <h4 class="mt-0"><?php if ($active_channel) { $ch = $this->Chat_model->get_channel_by_id($active_channel); echo htmlspecialchars($ch['name']); } else { echo _l('No channel selected'); } ?></h4>
                 <?php if ($active_channel): ?>
                     <div id="chat-messages" style="height:300px; overflow-y:auto; border:1px solid #ddd; padding:10px; background:#fafafa;">
                         <?php foreach ($messages as $msg): ?>
@@ -75,3 +81,8 @@
         </div>
     </div>
 </div>
+
+<style>
+    .chat-channels-list .channel-item { cursor: pointer; }
+    .chat-channels-list .channel-item.active { background: #f0f7ff; border-color: #b6e0fe; }
+</style>
