@@ -43,7 +43,7 @@ function slack_chat_module_init_menu() {
     if (is_admin()) {
         $CI->app_menu->add_sidebar_menu_item('slack_chat', [
             'name'     => _l('Chat'),
-            'href'     => admin_url('slack_chat'),
+            'href'     => admin_url('slack_chat/chat'), // direct to chat view
             'icon'     => 'fa fa-comments',
             'position' => 40,
         ]);

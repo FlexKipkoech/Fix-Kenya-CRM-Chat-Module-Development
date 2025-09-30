@@ -1,13 +1,14 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
-
 <link href="<?php echo module_dir_url('slack_chat', 'assets/css/chat.css'); ?>" rel="stylesheet">
 
-<div class="panel_s">
-    <div class="panel-body">
-        <h4 class="no-margin"><?php echo _l('Chat'); ?></h4>
-        <hr />
-        <div class="row">
+<div id="_wrapper" class="container-fluid">
+    <div class="content">
+        <div class="panel_s">
+            <div class="panel-body">
+                <h4 class="no-margin"><?php echo _l('Chat'); ?></h4>
+                <hr />
+                <div class="row mtop15">
             <div class="col-md-3">
                 <div class="clearfix mbot10">
                     <h5 class="pull-left"><?php echo _l('Channels'); ?></h5>
@@ -65,14 +66,11 @@
                     <div class="alert alert-info"><?php echo _l('Select a channel to start chatting.'); ?></div>
                 <?php endif; ?>
             </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-
-<style>
-    .chat-channels-list .channel-item { cursor: pointer; }
-    .chat-channels-list .channel-item.active { background: #f0f7ff; border-color: #b6e0fe; }
-</style>
 
 <script src="<?php echo module_dir_url('slack_chat', 'assets/js/chat.js'); ?>"></script>
 <?php init_tail(); ?>

@@ -14,8 +14,8 @@ class Slack_chat extends AdminController
 
     public function index()
     {
-        $data['title'] = _l('Chat Module Dashboard');
-        $this->load->view('slack_chat/admin/dashboard', $data);
+        // Directly redirect to chat interface (General channel decided in chat method)
+        redirect(admin_url('slack_chat/chat'));
     }
 
     // Show chat interface
@@ -89,30 +89,38 @@ class Slack_chat extends AdminController
     // Handle AJAX message sending
     public function send_message()
     {
-        if ($this->input->is_ajax_request()) {
-            $channel_id = $this->input->post('channel_id');
-            $message = trim($this->input->post('message'));
-            $user_id = get_staff_user_id();
-            if (empty($message) || empty($channel_id)) {
-                echo json_encode(['success' => false, 'error' => 'invalid_input']);
-                return;
-            }
-            $msg_id = $this->Chat_model->send_message($channel_id, $user_id, $message);
-            if ($msg_id) {
-                $msg = $this->Chat_model->get_message_with_user($msg_id);
-                echo json_encode(['success' => true, 'message' => $msg, 'csrf' => [
-                    'name' => $this->security->get_csrf_token_name(),
-                    'hash' => $this->security->get_csrf_hash()
-                ]]);
-            } else {
-                echo json_encode(['success' => false, 'csrf' => [
-                    'name' => $this->security->get_csrf_token_name(),
-                    'hash' => $this->security->get_csrf_hash()
-                ]]);
-            }
+        // Accept AJAX or standard POST
+        if ($this->input->method() !== 'post') {
+            show_404();
             return;
         }
-        show_404();
+        $channel_id = $this->input->post('channel_id');
+        $message = trim($this->input->post('message'));
+        $user_id = get_staff_user_id();
+        if (empty($message) || empty($channel_id)) {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode([
+                    'success' => false,
+                    'error'   => 'invalid_input',
+                    'csrf'    => [
+                        'name' => $this->security->get_csrf_token_name(),
+                        'hash' => $this->security->get_csrf_hash()
+                    ]
+                ]));
+        }
+        $msg_id = $this->Chat_model->send_message($channel_id, $user_id, $message);
+        if ($msg_id) {
+            $msg = $this->Chat_model->get_message_with_user($msg_id);
+            $resp = ['success' => true, 'message' => $msg];
+        } else {
+            $resp = ['success' => false];
+        }
+        $resp['csrf'] = [
+            'name' => $this->security->get_csrf_token_name(),
+            'hash' => $this->security->get_csrf_hash()
+        ];
+        return $this->output->set_content_type('application/json')->set_output(json_encode($resp));
     }
 
     // Handle AJAX message retrieval

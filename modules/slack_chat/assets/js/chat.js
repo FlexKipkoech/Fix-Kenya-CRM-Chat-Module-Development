@@ -41,8 +41,10 @@
 
     function loadRecent() {
         if (!config.channelId) return;
-    var data = addCsrf({limit:200});
-    $.get(config.baseUrl + '/get_messages/' + config.channelId, data, function(resp){
+        var data = addCsrf({limit:200});
+        var url = config.baseUrl + '/get_messages/' + config.channelId;
+        console.log('[Chat] GET recent URL:', url, data);
+        $.get(url, data, function(resp){
             if (resp && resp.messages) {
                 var html = '';
                 resp.messages.forEach(function(m){
@@ -50,14 +52,21 @@
                 });
                 $('#chat-messages').html(html);
                 scrollToBottom();
+                if (resp.csrf && resp.csrf.hash) {
+                    config.csrfName = resp.csrf.name;
+                    config.csrfHash = resp.csrf.hash;
+                }
             }
-        }, 'json');
+        }, 'json').fail(function(xhr){
+            console.error('[Chat] GET recent failed', xhr.status, xhr.responseText);
+        });
     }
 
     function pollSince(since) {
         if (!config.channelId) return;
         var data = addCsrf({since: since});
-        $.get(config.baseUrl + '/poll_messages/' + config.channelId, data, function(resp){
+        var url = config.baseUrl + '/poll_messages/' + config.channelId;
+        $.get(url, data, function(resp){
             if (resp && resp.success && resp.messages && resp.messages.length) {
                 var html = '';
                 resp.messages.forEach(function(m){ html += formatMessageHtml(m); });
@@ -71,7 +80,9 @@
                     $('form#chat-form input[name="'+resp.csrf.name+'"]').val(resp.csrf.hash);
                 }
             }
-        }, 'json');
+        }, 'json').fail(function(xhr){
+            console.error('[Chat] Poll failed', xhr.status, xhr.responseText);
+        });
     }
 
     $(document).ready(function(){
@@ -101,8 +112,11 @@
             if (!msg) return;
             var data = addCsrf({channel_id: config.channelId, message: msg});
             $('#chat-send').prop('disabled', true);
-            $.post(config.baseUrl + '/send_message', data, function(resp){
+            var postUrl = config.baseUrl + '/send_message';
+            console.log('[Chat] POST send URL:', postUrl, data);
+            $.post(postUrl, data, function(resp){
                 $('#chat-send').prop('disabled', false);
+                console.log('[Chat] POST response:', resp);
                 if (resp && resp.success && resp.message) {
                     var html = formatMessageHtml(resp.message);
                     $('#chat-messages').append(html);
@@ -115,8 +129,9 @@
                         $('form#chat-form input[name="'+resp.csrf.name+'"]').val(resp.csrf.hash);
                     }
                 }
-            }, 'json').fail(function(){
+            }, 'json').fail(function(xhr){
                 $('#chat-send').prop('disabled', false);
+                console.error('[Chat] POST send failed', xhr.status, xhr.responseText);
             });
         });
 
