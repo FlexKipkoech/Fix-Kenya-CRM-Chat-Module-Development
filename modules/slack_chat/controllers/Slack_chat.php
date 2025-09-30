@@ -89,38 +89,61 @@ class Slack_chat extends AdminController
     // Handle AJAX message sending
     public function send_message()
     {
-        // Accept AJAX or standard POST
         if ($this->input->method() !== 'post') {
             show_404();
             return;
         }
+
         $channel_id = $this->input->post('channel_id');
         $message = trim($this->input->post('message'));
         $user_id = get_staff_user_id();
+
         if (empty($message) || empty($channel_id)) {
-            return $this->output
-                ->set_content_type('application/json')
-                ->set_output(json_encode([
-                    'success' => false,
-                    'error'   => 'invalid_input',
-                    'csrf'    => [
-                        'name' => $this->security->get_csrf_token_name(),
-                        'hash' => $this->security->get_csrf_hash()
-                    ]
-                ]));
+            if ($this->input->is_ajax_request()) {
+                return $this->output
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode([
+                        'success' => false,
+                        'error'   => 'invalid_input',
+                        'csrf'    => [
+                            'name' => $this->security->get_csrf_token_name(),
+                            'hash' => $this->security->get_csrf_hash()
+                        ]
+                    ]));
+            } else {
+                set_alert('warning', _l('Invalid message or channel'));
+                redirect(admin_url('slack_chat/chat/' . $channel_id));
+            }
         }
+
         $msg_id = $this->Chat_model->send_message($channel_id, $user_id, $message);
+
         if ($msg_id) {
             $msg = $this->Chat_model->get_message_with_user($msg_id);
-            $resp = ['success' => true, 'message' => $msg];
+            if ($this->input->is_ajax_request()) {
+                $resp = ['success' => true, 'message' => $msg];
+                $resp['csrf'] = [
+                    'name' => $this->security->get_csrf_token_name(),
+                    'hash' => $this->security->get_csrf_hash()
+                ];
+                return $this->output->set_content_type('application/json')->set_output(json_encode($resp));
+            } else {
+                set_alert('success', _l('Message sent'));
+                redirect(admin_url('slack_chat/chat/' . $channel_id));
+            }
         } else {
-            $resp = ['success' => false];
+            if ($this->input->is_ajax_request()) {
+                $resp = ['success' => false, 'error' => 'send_failed'];
+                $resp['csrf'] = [
+                    'name' => $this->security->get_csrf_token_name(),
+                    'hash' => $this->security->get_csrf_hash()
+                ];
+                return $this->output->set_content_type('application/json')->set_output(json_encode($resp));
+            } else {
+                set_alert('warning', _l('Failed to send message'));
+                redirect(admin_url('slack_chat/chat/' . $channel_id));
+            }
         }
-        $resp['csrf'] = [
-            'name' => $this->security->get_csrf_token_name(),
-            'hash' => $this->security->get_csrf_hash()
-        ];
-        return $this->output->set_content_type('application/json')->set_output(json_encode($resp));
     }
 
     // Handle AJAX message retrieval
