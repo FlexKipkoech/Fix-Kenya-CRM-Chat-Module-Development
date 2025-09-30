@@ -71,7 +71,10 @@
         
         var who = $('<div>').addClass('chat-message-user').text(userName);
         var body = $('<div>').addClass('chat-message-body').html(escapeHtml(m.message).replace(/\n/g, '<br/>'));
-        var time = $('<div>').addClass('chat-message-time text-muted').text(m.created_at);
+        
+        // Use formatted timestamp if available, otherwise use raw timestamp
+        var timestamp = m.created_at_formatted || m.created_at;
+        var time = $('<div>').addClass('chat-message-time text-muted').text(timestamp);
         
         // Determine if message is from current user
         var currentUserId = config.currentUserId || window.staffId;

@@ -106,7 +106,7 @@ class Chat_model extends CI_Model
         return $this->db->get(db_prefix() . 'chat_messages')->row_array();
     }
 
-    public function create_channel($name, $description)
+    public function create_channel($name, $description, $is_private = 0)
     {
         if (!$this->table_exists_or_log('chat_channels')) {
             return false;
@@ -114,7 +114,7 @@ class Chat_model extends CI_Model
         $data = [
             'name'        => $name,
             'description' => $description,
-            'is_private'  => 0,
+            'is_private'  => (int)$is_private,
             'created_by'  => get_staff_user_id(),
             'created_at'  => date('Y-m-d H:i:s'),
         ];
@@ -196,5 +196,67 @@ class Chat_model extends CI_Model
         $this->db->where('m.user_id', $user_id);
         $this->db->order_by('c.name', 'ASC');
         return $this->db->get()->result_array();
+    }
+
+    /**
+     * Check if a user is a member of a channel (or if channel is public)
+     */
+    public function user_can_access_channel($channel_id, $user_id)
+    {
+        if (!$this->table_exists_or_log('chat_channels') || !$this->table_exists_or_log('chat_members')) {
+            return false;
+        }
+        
+        // Get channel
+        $channel = $this->get_channel_by_id($channel_id);
+        if (!$channel) {
+            return false;
+        }
+        
+        // If channel is public, anyone can access
+        if (!$channel['is_private']) {
+            return true;
+        }
+        
+        // If private, check membership
+        $this->db->where('channel_id', $channel_id);
+        $this->db->where('user_id', $user_id);
+        $member = $this->db->get(db_prefix() . 'chat_members')->row_array();
+        
+        return (bool)$member;
+    }
+
+    /**
+     * Get accessible channels for a user (all public + joined private)
+     */
+    public function get_accessible_channels($user_id)
+    {
+        if (!$this->table_exists_or_log('chat_channels')) {
+            return [];
+        }
+        
+        // Get all public channels
+        $this->db->where('is_private', 0);
+        $public = $this->db->get(db_prefix() . 'chat_channels')->result_array();
+        
+        // Get private channels user is member of
+        if ($this->table_exists_or_log('chat_members')) {
+            $this->db->select('c.*');
+            $this->db->from(db_prefix() . 'chat_channels c');
+            $this->db->join(db_prefix() . 'chat_members m', 'm.channel_id = c.id');
+            $this->db->where('c.is_private', 1);
+            $this->db->where('m.user_id', $user_id);
+            $private = $this->db->get()->result_array();
+        } else {
+            $private = [];
+        }
+        
+        // Combine and sort
+        $all = array_merge($public, $private);
+        usort($all, function($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        });
+        
+        return $all;
     }
 }

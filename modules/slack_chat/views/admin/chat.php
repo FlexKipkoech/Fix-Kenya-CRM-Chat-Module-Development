@@ -20,6 +20,11 @@
                         <?php $active = ($active_channel == $channel['id']); ?>
                         <li class="list-group-item <?php echo $active ? 'active' : ''; ?> channel-item" data-id="<?php echo $channel['id']; ?>">
                             <a href="<?php echo admin_url('slack_chat/chat/' . $channel['id']); ?>" style="color:inherit; text-decoration:none; display:block;">
+                                <?php if ($channel['is_private']): ?>
+                                    <i class="fa fa-lock" style="margin-right:5px;"></i>
+                                <?php else: ?>
+                                    <i class="fa fa-hashtag" style="margin-right:5px;"></i>
+                                <?php endif; ?>
                                 <?php echo htmlspecialchars($channel['name']); ?>
                                 <div class="text-muted" style="font-size:11px;"><?php echo htmlspecialchars($channel['description']); ?></div>
                             </a>
@@ -38,7 +43,7 @@
                                 <div class="chat-message <?php echo ($msg['user_id'] == get_staff_user_id()) ? 'mine' : 'theirs'; ?>">
                                     <div class="chat-message-user"><?php echo isset($msg['user_name']) ? htmlspecialchars($msg['user_name']) : 'User ' . $msg['user_id']; ?></div>
                                     <div class="chat-message-body"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
-                                    <div class="chat-message-time text-muted"><?php echo $msg['created_at']; ?></div>
+                                    <div class="chat-message-time text-muted"><?php echo _dt($msg['created_at']); ?></div>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
