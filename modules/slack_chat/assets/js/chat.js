@@ -1,9 +1,11 @@
-(function($){
+// Slack Chat Module JS (enhanced for robust init & reliable AJAX form handling)
+(function(){
     'use strict';
 
     var config = window.slackChatConfig || {};
     var pollingInterval = 2500; // ms
     var pollingTimer = null;
+    var initialised = false;
 
     function getCsrf() {
         // Try to read from form hidden input first
@@ -85,7 +87,14 @@
         });
     }
 
-    $(document).ready(function(){
+    function initChat(){
+        if (initialised || typeof window.jQuery === 'undefined') {
+            return;
+        }
+        var $ = window.jQuery;
+        initialised = true;
+        console.log('[Chat] Initialising chat module');
+
         // staffId from global Perfex var if available
         window.staffId = window.staffId || (typeof(slackChatStaffId) !== 'undefined' ? slackChatStaffId : null);
 
@@ -93,10 +102,8 @@
         loadRecent();
 
         // set up polling
-        var lastTimestamp = null;
         pollingTimer = setInterval(function(){
-            // determine last timestamp from last message
-            var last = $('#chat-messages .chat-message').last().find('.chat-message-time').text();
+            var last = jQuery('#chat-messages .chat-message').last().find('.chat-message-time').text();
             if (last) {
                 pollSince(last);
             } else {
@@ -104,41 +111,62 @@
             }
         }, pollingInterval);
 
-        // send message handler
-        $('#chat-form').on('submit', function(e){
-            e.preventDefault();
-            var $form = $(this);
-            var msg = $.trim($('#chat-input').val());
-            if (!msg) return;
+        // Robust delegated handler (in case form is re-rendered)
+        jQuery(document).on('submit', '#chat-form', function(e){
+            e.preventDefault(); // ensure no full page POST
+            console.log('[Chat] Submit intercepted');
+            var $form = jQuery(this);
+            var $input = $form.find('#chat-input');
+            var msg = jQuery.trim($input.val());
+            if (!msg) { return false; }
+
             var data = addCsrf({channel_id: config.channelId, message: msg});
-            $('#chat-send').prop('disabled', true);
             var postUrl = config.baseUrl + '/send_message';
+            jQuery('#chat-send').prop('disabled', true);
             console.log('[Chat] POST send URL:', postUrl, data);
-            $.post(postUrl, data, function(resp){
-                $('#chat-send').prop('disabled', false);
+
+            jQuery.post(postUrl, data, function(resp){
+                jQuery('#chat-send').prop('disabled', false);
                 console.log('[Chat] POST response:', resp);
                 if (resp && resp.success && resp.message) {
-                    var html = formatMessageHtml(resp.message);
-                    $('#chat-messages').append(html);
-                    $('#chat-input').val('').focus();
-                    scrollToBottom();
-                    // update CSRF token if server returned one
+                    // Ensure own message displays with explicit label
+                    var mine = resp.message;
+                    if (mine) {
+                        mine.user_name = mine.user_name || 'You';
+                        var html = formatMessageHtml(mine).replace('User '+mine.user_id+':', 'You:');
+                        jQuery('#chat-messages').append(html);
+                        scrollToBottom();
+                    }
+                    $input.val('').focus();
                     if (resp.csrf && resp.csrf.name && resp.csrf.hash) {
                         config.csrfName = resp.csrf.name;
                         config.csrfHash = resp.csrf.hash;
-                        $('form#chat-form input[name="'+resp.csrf.name+'"]').val(resp.csrf.hash);
+                        $form.find('input[name="'+resp.csrf.name+'"]').val(resp.csrf.hash);
                     }
+                } else {
+                    alert('Message failed to send.');
                 }
             }, 'json').fail(function(xhr){
-                $('#chat-send').prop('disabled', false);
+                jQuery('#chat-send').prop('disabled', false);
                 console.error('[Chat] POST send failed', xhr.status, xhr.responseText);
+                alert('Error sending message: ' + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.status));
             });
-        });
 
-        // change channel handler (sidebar)
-        $('.chat-channels-list').on('click', '.channel-item a', function(e){
-            // let link navigate normally (full page load) for simplicity
+            return false; // safety
         });
-    });
+    }
 
-})(jQuery);
+    // Attempt immediate init, fallback if jQuery not yet loaded
+    if (typeof window.jQuery !== 'undefined') {
+        window.jQuery(function(){ initChat(); });
+    } else {
+        var jqWait = setInterval(function(){
+            if (typeof window.jQuery !== 'undefined') {
+                clearInterval(jqWait);
+                window.jQuery(function(){ initChat(); });
+            }
+        }, 100);
+        setTimeout(function(){ clearInterval(jqWait); }, 10000); // stop after 10s
+    }
+
+})();
