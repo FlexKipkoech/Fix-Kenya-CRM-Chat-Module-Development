@@ -1,9 +1,11 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
-
 <link href="<?php echo module_dir_url('slack_chat', 'assets/css/chat.css'); ?>" rel="stylesheet">
-
-<div class="panel_s">
+<div id="wrapper">
+    <div class="content">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel_s">
     <div class="panel-body">
         <h4 class="no-margin"><?php echo _l('Chat'); ?></h4>
         <hr />
@@ -18,6 +20,11 @@
                         <?php $active = ($active_channel == $channel['id']); ?>
                         <li class="list-group-item <?php echo $active ? 'active' : ''; ?> channel-item" data-id="<?php echo $channel['id']; ?>">
                             <a href="<?php echo admin_url('slack_chat/chat/' . $channel['id']); ?>" style="color:inherit; text-decoration:none; display:block;">
+                                <?php if ($channel['is_private']): ?>
+                                    <i class="fa fa-lock" style="margin-right:5px;"></i>
+                                <?php else: ?>
+                                    <i class="fa fa-hashtag" style="margin-right:5px;"></i>
+                                <?php endif; ?>
                                 <?php echo htmlspecialchars($channel['name']); ?>
                                 <div class="text-muted" style="font-size:11px;"><?php echo htmlspecialchars($channel['description']); ?></div>
                             </a>
@@ -36,7 +43,7 @@
                                 <div class="chat-message <?php echo ($msg['user_id'] == get_staff_user_id()) ? 'mine' : 'theirs'; ?>">
                                     <div class="chat-message-user"><?php echo isset($msg['user_name']) ? htmlspecialchars($msg['user_name']) : 'User ' . $msg['user_id']; ?></div>
                                     <div class="chat-message-body"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
-                                    <div class="chat-message-time text-muted"><?php echo $msg['created_at']; ?></div>
+                                    <div class="chat-message-time text-muted"><?php echo _dt($msg['created_at']); ?></div>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -56,6 +63,7 @@
                         var slackChatConfig = {
                             baseUrl: '<?php echo admin_url('slack_chat'); ?>',
                             channelId: <?php echo (int)$active_channel; ?>,
+                            currentUserId: <?php echo (int)get_staff_user_id(); ?>,
                             csrfName: '<?php echo $this->security->get_csrf_token_name(); ?>',
                             csrfHash: '<?php echo $this->security->get_csrf_hash(); ?>'
                         };
@@ -66,13 +74,11 @@
                 <?php endif; ?>
             </div>
         </div>
+        </div>
     </div>
 </div>
-
-<style>
-    .chat-channels-list .channel-item { cursor: pointer; }
-    .chat-channels-list .channel-item.active { background: #f0f7ff; border-color: #b6e0fe; }
-</style>
+</div>
+</div>
 
 <script src="<?php echo module_dir_url('slack_chat', 'assets/js/chat.js'); ?>"></script>
 <?php init_tail(); ?>
