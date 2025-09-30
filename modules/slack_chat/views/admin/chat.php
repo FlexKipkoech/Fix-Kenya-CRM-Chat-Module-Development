@@ -1,4 +1,8 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
+<?php init_head(); ?>
+
+<link href="<?php echo module_dir_url('slack_chat', 'assets/css/chat.css'); ?>" rel="stylesheet">
+
 <div class="panel_s">
     <div class="panel-body">
         <h4 class="no-margin"><?php echo _l('Chat'); ?></h4>
@@ -40,6 +44,7 @@
                     <div id="typing-indicator" class="text-muted" style="height:18px;margin-top:6px;display:none;">typing...</div>
                     <form id="chat-form" class="mt-2" method="post" action="<?php echo admin_url('slack_chat/send_message'); ?>">
                         <?php echo form_hidden('channel_id', $active_channel); ?>
+                        <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
                         <div class="input-group">
                             <textarea name="message" id="chat-input" class="form-control" placeholder="Type a message..." rows="2" required></textarea>
                             <span class="input-group-btn">
@@ -69,6 +74,5 @@
     .chat-channels-list .channel-item.active { background: #f0f7ff; border-color: #b6e0fe; }
 </style>
 
-<!-- Module assets -->
-<link rel="stylesheet" href="<?php echo module_dir_url('slack_chat', 'assets/css/chat.css'); ?>">
 <script src="<?php echo module_dir_url('slack_chat', 'assets/js/chat.js'); ?>"></script>
+<?php init_tail(); ?>

@@ -77,7 +77,10 @@ class Slack_chat extends AdminController
         if ($this->input->is_ajax_request()) {
             $user_id = get_staff_user_id();
             $res = $this->Chat_model->join_channel($channel_id, $user_id);
-            echo json_encode(['success' => (bool)$res]);
+            echo json_encode(['success' => (bool)$res, 'csrf' => [
+                'name' => $this->security->get_csrf_token_name(),
+                'hash' => $this->security->get_csrf_hash()
+            ]]);
             return;
         }
         show_404();
@@ -97,9 +100,15 @@ class Slack_chat extends AdminController
             $msg_id = $this->Chat_model->send_message($channel_id, $user_id, $message);
             if ($msg_id) {
                 $msg = $this->Chat_model->get_message_with_user($msg_id);
-                echo json_encode(['success' => true, 'message' => $msg]);
+                echo json_encode(['success' => true, 'message' => $msg, 'csrf' => [
+                    'name' => $this->security->get_csrf_token_name(),
+                    'hash' => $this->security->get_csrf_hash()
+                ]]);
             } else {
-                echo json_encode(['success' => false]);
+                echo json_encode(['success' => false, 'csrf' => [
+                    'name' => $this->security->get_csrf_token_name(),
+                    'hash' => $this->security->get_csrf_hash()
+                ]]);
             }
             return;
         }
@@ -123,7 +132,10 @@ class Slack_chat extends AdminController
                     }
                 }
             }
-            echo json_encode(['messages' => $messages]);
+            echo json_encode(['messages' => $messages, 'csrf' => [
+                'name' => $this->security->get_csrf_token_name(),
+                'hash' => $this->security->get_csrf_hash()
+            ]]);
             return;
         }
         show_404();
@@ -143,7 +155,10 @@ class Slack_chat extends AdminController
                 $staff = $this->db->get_where(db_prefix() . 'staff', ['staffid' => $m['user_id']])->row_array();
                 $m['user_name'] = $staff ? trim($staff['firstname'].' '.$staff['lastname']) : ('User '.$m['user_id']);
             }
-            echo json_encode(['success' => true, 'messages' => $messages]);
+            echo json_encode(['success' => true, 'messages' => $messages, 'csrf' => [
+                'name' => $this->security->get_csrf_token_name(),
+                'hash' => $this->security->get_csrf_hash()
+            ]]);
             return;
         }
         show_404();
