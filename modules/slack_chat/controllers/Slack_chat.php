@@ -93,6 +93,49 @@ class Slack_chat extends AdminController
         show_404();
     }
 
+    /**
+     * Handle typing indicator (ephemeral - not stored in DB)
+     */
+    public function typing_indicator()
+    {
+        if ($this->input->is_ajax_request()) {
+            $channel_id = $this->input->post('channel_id');
+            $user_id = get_staff_user_id();
+            
+            if (empty($channel_id)) {
+                echo json_encode(['success' => false]);
+                return;
+            }
+            
+            // Check if user can access this channel
+            if (!$this->Chat_model->user_can_access_channel($channel_id, $user_id)) {
+                echo json_encode(['success' => false, 'error' => 'access_denied']);
+                return;
+            }
+            
+            // Get user name
+            $staff = $this->db->get_where(db_prefix() . 'staff', ['staffid' => $user_id])->row_array();
+            $user_name = $staff ? trim($staff['firstname'] . ' ' . $staff['lastname']) : ('User ' . $user_id);
+            
+            // Store typing state in session (ephemeral)
+            // In a real implementation, you might use Redis or memcache
+            // For now, we'll just return success
+            // Clients would need WebSocket for real-time typing indicators
+            
+            echo json_encode([
+                'success' => true,
+                'user_id' => $user_id,
+                'user_name' => $user_name,
+                'csrf' => [
+                    'name' => $this->security->get_csrf_token_name(),
+                    'hash' => $this->security->get_csrf_hash()
+                ]
+            ]);
+            return;
+        }
+        show_404();
+    }
+
     // Handle AJAX message sending
     public function send_message()
     {

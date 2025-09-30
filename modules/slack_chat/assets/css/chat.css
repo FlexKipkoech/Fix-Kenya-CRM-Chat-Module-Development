@@ -139,10 +139,17 @@
 #typing-indicator {
     height: 20px;
     margin-top: 5px;
+    margin-bottom: 5px;
     font-size: 12px;
     font-style: italic;
     color: #888;
     padding-left: 5px;
+    min-height: 20px;
+}
+
+#typing-indicator:not(:empty)::before {
+    content: '💬 ';
+    font-style: normal;
 }
 
 /* Scrollbar Styling */

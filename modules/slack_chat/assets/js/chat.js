@@ -5,6 +5,8 @@
     var pollingInterval = 2500; // ms
     var pollingTimer = null;
     var lastMessageTimestamp = null;
+    var typingTimer = null;
+    var typingDebounceTime = 800; // ms - time to wait after last keypress before hiding typing indicator
 
     /**
      * Get CSRF token from config or form
@@ -194,6 +196,38 @@
     }
 
     /**
+     * Show typing indicator (local only - for demonstration)
+     */
+    function showTypingIndicator() {
+        $('#typing-indicator').text('Someone is typing...').show();
+    }
+
+    /**
+     * Hide typing indicator
+     */
+    function hideTypingIndicator() {
+        $('#typing-indicator').hide().text('');
+    }
+
+    /**
+     * Handle typing detection
+     */
+    function onTyping() {
+        // Clear existing timer
+        if (typingTimer) {
+            clearTimeout(typingTimer);
+        }
+        
+        // Show local typing indicator (in real implementation, send to server)
+        // For now, we just prepare the infrastructure
+        
+        // Set timer to hide indicator after user stops typing
+        typingTimer = setTimeout(function(){
+            hideTypingIndicator();
+        }, typingDebounceTime);
+    }
+
+    /**
      * Initialize chat functionality
      */
     $(document).ready(function(){
@@ -236,8 +270,18 @@
             var msg = $.trim($('#chat-input').val());
             if (msg) {
                 sendMessage(msg);
+                hideTypingIndicator();
             }
             return false;
+        });
+        
+        // Handle typing detection
+        $('#chat-input').on('keyup', function(e){
+            // Don't trigger on Enter key (that's submit)
+            if (e.which === 13) {
+                return;
+            }
+            onTyping();
         });
         
         // Focus input on load
