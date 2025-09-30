@@ -10,6 +10,7 @@
 /* Layout adjustments to avoid overlapping Perfex sidebar */
 .chat-wrapper {
     display: flex;
+    transition: all 0.3s ease; /* Smooth transition for dynamic adjustments */
 }
 
 .chat-sidebar {
@@ -18,6 +19,7 @@
     border-right: 1px solid #e5e5e5;
     height: calc(100vh - 160px); /* Adjust based on header/footer height */
     overflow-y: auto;
+    transition: width 0.3s ease; /* Smooth width change */
 }
 
 .chat-main {
@@ -26,6 +28,25 @@
     height: calc(100vh - 160px); /* Adjust based on header/footer height */
     display: flex;
     flex-direction: column;
+    transition: padding-left 0.3s ease; /* Smooth padding change */
+}
+
+/* Adjust when CRM sidebar is hidden (assuming class 'hide-sidebar' on body) */
+body.hide-sidebar .chat-sidebar {
+    width: 300px; /* Expand when main sidebar is hidden */
+}
+
+body.hide-sidebar .chat-main {
+    padding-left: 30px; /* Adjust padding accordingly */
+}
+
+/* If the sidebar is collapsed with a different class, adjust accordingly */
+body.sidebar-collapse .chat-sidebar {
+    width: 300px;
+}
+
+body.sidebar-collapse .chat-main {
+    padding-left: 30px;
 }
 
 .chat-messages {
@@ -55,5 +76,9 @@
     }
     .chat-main {
         padding-left: 0;
+    }
+    body.hide-sidebar .chat-sidebar,
+    body.sidebar-collapse .chat-sidebar {
+        width: 100%;
     }
 }
