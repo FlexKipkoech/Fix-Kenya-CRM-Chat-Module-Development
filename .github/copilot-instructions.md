@@ -7,14 +7,14 @@ This repository contains a CodeIgniter module that implements a Slack-like chat 
 Key points for an AI coding agent (be precise and local):
 
 - Architecture & responsibilities
-  - controllers/Slack_chat.php — admin controller (extends AdminController). Gatekeeping: `is_admin()` and `access_denied()` are used.
-  - models/Chat_model.php — DB access. Uses `db_prefix()` for table names and defensive `table_exists_or_log()` checks.
-  - views/admin/*.php — UI (dashboard and chat view). Use `_l()` for translatable strings.
-  - slack_chat.php — module entry: registers `register_activation_hook`, `register_deactivation_hook`, and adds the admin menu via `hooks()->add_action('admin_init', ...)`.
-  - install.php — creates 3 tables: `chat_channels`, `chat_messages`, `chat_members`. It returns true on success and logs errors via `log_message()`.
+  - `controllers/Slack_chat.php` — admin controller (extends `AdminController`). Gatekeeping: `is_admin()` and `access_denied()` are used.
+  - `models/Chat_model.php` — DB access. Uses `db_prefix()` for table names and defensive `table_exists_or_log()` checks.
+  - `views/admin/*.php` — UI (dashboard and chat view). Use `_l()` for translatable strings.
+  - `slack_chat.php` — module entry: registers `register_activation_hook`, `register_deactivation_hook`, and adds the admin menu via `hooks()->add_action('admin_init', ...)`.
+  - `install.php` — creates 3 tables: `chat_channels`, `chat_messages`, `chat_members`. It returns true on success and logs errors via `log_message()`.
 
 - Project-specific conventions (strictly follow these)
-  - Always use `db_prefix()` for table names (see `install.php` and `Chat_model`).
+  - Always use `db_prefix()` for table names (see `install.php` and `Chat_model.php`).
   - Use CRM helpers: `get_instance()`, `admin_url()`, `get_staff_user_id()` for user context.
   - Localize UI text via `_l('...')`.
   - Use `hooks()->add_action('admin_init', 'your_init_func')` to hook into admin UI/menu initialization.
@@ -31,7 +31,7 @@ Key points for an AI coding agent (be precise and local):
 
 - Small concrete examples you can mimic
   - Add admin menu item: see `slack_chat.php` -> `app_menu->add_sidebar_menu_item('slack_chat', [...])`.
-  - Create a new channel: `Chat_model::create_channel($name, $description)` — uses `get_staff_user_id()` and `db_prefix()`.
+  - Create a new channel: `Chat_model::create_channel($name, $description, $is_private)` — uses `get_staff_user_id()` and `db_prefix()`.
   - Insert message: `Chat_model::send_message($channel_id, $user_id, $message)` — returns insert id.
 
 - What an AI agent must not assume
