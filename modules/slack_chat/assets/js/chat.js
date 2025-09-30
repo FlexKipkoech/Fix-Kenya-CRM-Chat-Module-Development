@@ -95,78 +95,115 @@
         initialised = true;
         console.log('[Chat] Initialising chat module');
 
-        // staffId from global Perfex var if available
-        window.staffId = window.staffId || (typeof(slackChatStaffId) !== 'undefined' ? slackChatStaffId : null);
+        $(document).ready(function(){
+            // staffId from global Perfex var if available
+            window.staffId = window.staffId || (typeof(slackChatStaffId) !== 'undefined' ? slackChatStaffId : null);
 
-        // initial load
-        loadRecent();
+            // initial load
+            loadRecent();
 
-        // set up polling
-        pollingTimer = setInterval(function(){
-            var last = jQuery('#chat-messages .chat-message').last().find('.chat-message-time').text();
-            if (last) {
-                pollSince(last);
-            } else {
-                loadRecent();
-            }
-        }, pollingInterval);
-
-        // Robust delegated handler (in case form is re-rendered)
-        jQuery(document).on('submit', '#chat-form', function(e){
-            e.preventDefault(); // ensure no full page POST
-            console.log('[Chat] Submit intercepted');
-            var $form = jQuery(this);
-            var $input = $form.find('#chat-input');
-            var msg = jQuery.trim($input.val());
-            if (!msg) { return false; }
-
-            var data = addCsrf({channel_id: config.channelId, message: msg});
-            var postUrl = config.baseUrl + '/send_message';
-            jQuery('#chat-send').prop('disabled', true);
-            console.log('[Chat] POST send URL:', postUrl, data);
-
-            jQuery.post(postUrl, data, function(resp){
-                jQuery('#chat-send').prop('disabled', false);
-                console.log('[Chat] POST response:', resp);
-                if (resp && resp.success && resp.message) {
-                    // Ensure own message displays with explicit label
-                    var mine = resp.message;
-                    if (mine) {
-                        mine.user_name = mine.user_name || 'You';
-                        var html = formatMessageHtml(mine).replace('User '+mine.user_id+':', 'You:');
-                        jQuery('#chat-messages').append(html);
-                        scrollToBottom();
-                    }
-                    $input.val('').focus();
-                    if (resp.csrf && resp.csrf.name && resp.csrf.hash) {
-                        config.csrfName = resp.csrf.name;
-                        config.csrfHash = resp.csrf.hash;
-                        $form.find('input[name="'+resp.csrf.name+'"]').val(resp.csrf.hash);
-                    }
+            // set up polling
+            pollingTimer = setInterval(function(){
+                var last = jQuery('#chat-messages .chat-message').last().find('.chat-message-time').text();
+                if (last) {
+                    pollSince(last);
                 } else {
-                    alert('Message failed to send.');
+                    loadRecent();
                 }
-            }, 'json').fail(function(xhr){
-                jQuery('#chat-send').prop('disabled', false);
-                console.error('[Chat] POST send failed', xhr.status, xhr.responseText);
-                alert('Error sending message: ' + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.status));
+            }, pollingInterval);
+
+            // send message handler
+            $('#chat-form').on('submit', function(e){
+                e.preventDefault(); // This is the most critical part.
+                console.log('[Chat] Submit intercepted, default prevented.');
+
+                var $form = $(this);
+                var $input = $form.find('#chat-input');
+                var msg = $.trim($input.val());
+                if (!msg) { return; }
+
+                // Immediately append the user's own message
+                var tempMsg = {
+                    user_name: 'You',
+                    message: msg,
+                    created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    user_id: window.staffId
+                };
+                var html = formatMessageHtml(tempMsg);
+                // Remove "no messages yet" if it exists
+                $('#chat-messages .text-muted').remove();
+                $('#chat-messages').append(html);
+                scrollToBottom();
+                $input.val(''); // Clear input immediately
+
+                var data = addCsrf({channel_id: config.channelId, message: msg});
+                var postUrl = config.baseUrl + '/send_message';
+                $('#chat-send').prop('disabled', true);
+                console.log('[Chat] POST send URL:', postUrl, data);
+
+                $.post(postUrl, data, function(resp){
+                    console.log('[Chat] POST response:', resp);
+                    if (resp && resp.success) {
+                        // The message is already displayed optimistically.
+                        // We just need to update the CSRF token.
+                        if (resp.csrf && resp.csrf.name && resp.csrf.hash) {
+                            config.csrfName = resp.csrf.name;
+                            config.csrfHash = resp.csrf.hash;
+                            $form.find('input[name="'+resp.csrf.name+'"]').val(resp.csrf.hash);
+                        }
+                    } else {
+                        alert('Message failed to send.');
+                        // Optionally remove the temporary message that was added
+                        $('#chat-messages .chat-message:last-child').remove();
+                    }
+                }, 'json').fail(function(xhr){
+                    console.error('[Chat] POST send failed', xhr.status, xhr.responseText);
+                    alert('Error sending message: ' + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.status));
+                     $('#chat-messages .chat-message:last-child').remove();
+                }).always(function(){
+                    $('#chat-send').prop('disabled', false);
+                    $input.focus();
+                });
             });
 
-            return false; // safety
-        });
-    }
+            // change channel handler (sidebar)
+            $('#chat-channels').on('click', '.chat-channel', function(e){
+                e.preventDefault();
+                var $link = $(this);
+                var newChannelId = $link.data('channel-id');
+                if (!newChannelId || newChannelId == config.channelId) return;
 
-    // Attempt immediate init, fallback if jQuery not yet loaded
-    if (typeof window.jQuery !== 'undefined') {
-        window.jQuery(function(){ initChat(); });
-    } else {
-        var jqWait = setInterval(function(){
-            if (typeof window.jQuery !== 'undefined') {
-                clearInterval(jqWait);
-                window.jQuery(function(){ initChat(); });
-            }
-        }, 100);
-        setTimeout(function(){ clearInterval(jqWait); }, 10000); // stop after 10s
+                console.log('[Chat] Channel change requested:', newChannelId);
+                $('#chat-messages').html(''); // clear current messages
+                config.channelId = newChannelId;
+                var channelName = $link.find('.channel-name').text().trim();
+                $('#chat-channel-name').text(channelName);
+                $('input[name="channel_id"]').val(newChannelId);
+
+                // reset CSRF token on channel change (safer)
+                var csrf = getCsrf();
+                if (csrf && csrf.name) {
+                    config.csrfName = csrf.name;
+                    config.csrfHash = csrf.value;
+                    $('form#chat-form input[name="'+csrf.name+'"]').val(csrf.value);
+                }
+
+                loadRecent();
+            });
+        });
+
+        // Attempt immediate init, fallback if jQuery not yet loaded
+        if (typeof window.jQuery !== 'undefined') {
+            window.jQuery(function(){ initChat(); });
+        } else {
+            var jqWait = setInterval(function(){
+                if (typeof window.jQuery !== 'undefined') {
+                    clearInterval(jqWait);
+                    window.jQuery(function(){ initChat(); });
+                }
+            }, 100);
+            setTimeout(function(){ clearInterval(jqWait); }, 10000); // stop after 10s
+        }
     }
 
 })();
