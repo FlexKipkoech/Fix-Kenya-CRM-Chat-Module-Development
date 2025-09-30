@@ -86,12 +86,19 @@ class Chat_model extends CI_Model
         // try to join staff table for user info
         $staff_table = db_prefix() . 'staff';
         if ($this->db->table_exists($staff_table)) {
-            $this->db->select(db_prefix() . "chat_messages.*,")
-                ->select($staff_table . ".staffid as user_id, " . $staff_table . ".firstname, " . $staff_table . ".lastname", false);
+            $this->db->select(db_prefix() . "chat_messages.*");
+            $this->db->select($staff_table . ".staffid as user_id, " . $staff_table . ".firstname, " . $staff_table . ".lastname", false);
             $this->db->from(db_prefix() . 'chat_messages');
             $this->db->join($staff_table, $staff_table . '.staffid = ' . db_prefix() . 'chat_messages.user_id', 'left');
             $this->db->where(db_prefix() . 'chat_messages.id', $message_id);
-            return $this->db->get()->row_array();
+            $msg = $this->db->get()->row_array();
+            
+            // Format user name if we have firstname/lastname
+            if ($msg && isset($msg['firstname']) && isset($msg['lastname'])) {
+                $msg['user_name'] = trim($msg['firstname'] . ' ' . $msg['lastname']);
+            }
+            
+            return $msg;
         }
 
         // fallback: return message only

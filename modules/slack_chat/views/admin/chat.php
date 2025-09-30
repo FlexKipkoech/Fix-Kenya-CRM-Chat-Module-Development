@@ -1,9 +1,11 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
-
 <link href="<?php echo module_dir_url('slack_chat', 'assets/css/chat.css'); ?>" rel="stylesheet">
-
-<div class="panel_s">
+<div id="wrapper">
+    <div class="content">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel_s">
     <div class="panel-body">
         <h4 class="no-margin"><?php echo _l('Chat'); ?></h4>
         <hr />
@@ -56,6 +58,7 @@
                         var slackChatConfig = {
                             baseUrl: '<?php echo admin_url('slack_chat'); ?>',
                             channelId: <?php echo (int)$active_channel; ?>,
+                            currentUserId: <?php echo (int)get_staff_user_id(); ?>,
                             csrfName: '<?php echo $this->security->get_csrf_token_name(); ?>',
                             csrfHash: '<?php echo $this->security->get_csrf_hash(); ?>'
                         };
@@ -66,13 +69,11 @@
                 <?php endif; ?>
             </div>
         </div>
+        </div>
     </div>
 </div>
-
-<style>
-    .chat-channels-list .channel-item { cursor: pointer; }
-    .chat-channels-list .channel-item.active { background: #f0f7ff; border-color: #b6e0fe; }
-</style>
+</div>
+</div>
 
 <script src="<?php echo module_dir_url('slack_chat', 'assets/js/chat.js'); ?>"></script>
 <?php init_tail(); ?>
