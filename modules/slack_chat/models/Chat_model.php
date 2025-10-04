@@ -190,4 +190,181 @@ class Chat_model extends CI_Model
         $this->db->order_by('c.name', 'ASC');
         return $this->db->get()->result_array();
     }
+
+    // File upload methods
+    public function upload_file($message_id, $file_data)
+    {
+        if (!$this->table_exists_or_log('chat_files')) {
+            return false;
+        }
+        $data = [
+            'message_id'  => $message_id,
+            'filename'    => $file_data['filename'],
+            'filepath'    => $file_data['filepath'],
+            'filesize'    => $file_data['filesize'],
+            'filetype'    => $file_data['filetype'],
+            'uploaded_by' => $file_data['uploaded_by'],
+            'created_at'  => date('Y-m-d H:i:s'),
+        ];
+        $this->db->insert(db_prefix() . 'chat_files', $data);
+        return $this->db->insert_id();
+    }
+
+    public function get_message_files($message_id)
+    {
+        if (!$this->table_exists_or_log('chat_files')) {
+            return [];
+        }
+        $this->db->where('message_id', $message_id);
+        return $this->db->get(db_prefix() . 'chat_files')->result_array();
+    }
+
+    public function get_file_by_id($file_id)
+    {
+        if (!$this->table_exists_or_log('chat_files')) {
+            return null;
+        }
+        $this->db->where('id', $file_id);
+        return $this->db->get(db_prefix() . 'chat_files')->row_array();
+    }
+
+    // Reaction methods
+    public function add_reaction($message_id, $user_id, $emoji)
+    {
+        if (!$this->table_exists_or_log('chat_reactions')) {
+            return false;
+        }
+        // Check if reaction already exists
+        $this->db->where('message_id', $message_id);
+        $this->db->where('user_id', $user_id);
+        $this->db->where('emoji', $emoji);
+        $exists = $this->db->get(db_prefix() . 'chat_reactions')->row_array();
+        if ($exists) {
+            // Remove reaction if it exists (toggle)
+            $this->db->where('id', $exists['id']);
+            $this->db->delete(db_prefix() . 'chat_reactions');
+            return false; // Removed
+        } else {
+            $data = [
+                'message_id' => $message_id,
+                'user_id'    => $user_id,
+                'emoji'      => $emoji,
+                'created_at' => date('Y-m-d H:i:s'),
+            ];
+            $this->db->insert(db_prefix() . 'chat_reactions', $data);
+            return $this->db->insert_id(); // Added
+        }
+    }
+
+    public function get_reactions($message_id)
+    {
+        if (!$this->table_exists_or_log('chat_reactions')) {
+            return [];
+        }
+        $this->db->where('message_id', $message_id);
+        $this->db->order_by('emoji', 'ASC');
+        $reactions = $this->db->get(db_prefix() . 'chat_reactions')->result_array();
+        // Group by emoji and count
+        $grouped = [];
+        foreach ($reactions as $r) {
+            if (!isset($grouped[$r['emoji']])) {
+                $grouped[$r['emoji']] = ['emoji' => $r['emoji'], 'count' => 0, 'users' => []];
+            }
+            $grouped[$r['emoji']]['count']++;
+            $grouped[$r['emoji']]['users'][] = $r['user_id'];
+        }
+        return array_values($grouped);
+    }
+
+    // Typing indicator methods
+    public function set_typing($channel_id, $user_id)
+    {
+        if (!$this->table_exists_or_log('chat_typing')) {
+            return false;
+        }
+        $data = [
+            'channel_id' => $channel_id,
+            'user_id'    => $user_id,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->db->replace(db_prefix() . 'chat_typing', $data); // REPLACE INTO
+        return true;
+    }
+
+    public function clear_typing($channel_id, $user_id)
+    {
+        if (!$this->table_exists_or_log('chat_typing')) {
+            return false;
+        }
+        $this->db->where('channel_id', $channel_id);
+        $this->db->where('user_id', $user_id);
+        $this->db->delete(db_prefix() . 'chat_typing');
+        return true;
+    }
+
+    public function get_typing_users($channel_id)
+    {
+        if (!$this->table_exists_or_log('chat_typing')) {
+            return [];
+        }
+        // Get users who have typed in the last 5 seconds
+        $this->db->where('channel_id', $channel_id);
+        $this->db->where('updated_at >', date('Y-m-d H:i:s', time() - 5));
+        $typing = $this->db->get(db_prefix() . 'chat_typing')->result_array();
+        $users = [];
+        foreach ($typing as $t) {
+            $users[] = $t['user_id'];
+        }
+        return $users;
+    }
+
+    // Thread methods
+    public function add_thread_reply($parent_message_id, $message_data)
+    {
+        if (!$this->table_exists_or_log('chat_threads') || !$this->table_exists_or_log('chat_messages')) {
+            return false;
+        }
+        // First, insert the message
+        $msg_data = [
+            'channel_id' => $message_data['channel_id'],
+            'user_id'    => $message_data['user_id'],
+            'message'    => $message_data['message'],
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->db->insert(db_prefix() . 'chat_messages', $msg_data);
+        $message_id = $this->db->insert_id();
+        if (!$message_id) {
+            return false;
+        }
+        // Then, link to thread
+        $thread_data = [
+            'parent_message_id' => $parent_message_id,
+            'message_id'        => $message_id,
+            'created_at'        => date('Y-m-d H:i:s'),
+        ];
+        $this->db->insert(db_prefix() . 'chat_threads', $thread_data);
+        return $message_id;
+    }
+
+    public function get_thread_replies($parent_message_id)
+    {
+        if (!$this->table_exists_or_log('chat_threads') || !$this->table_exists_or_log('chat_messages')) {
+            return [];
+        }
+        $this->db->select('m.*, t.parent_message_id');
+        $this->db->from(db_prefix() . 'chat_messages m');
+        $this->db->join(db_prefix() . 'chat_threads t', 't.message_id = m.id');
+        $this->db->where('t.parent_message_id', $parent_message_id);
+        $this->db->order_by('m.created_at', 'ASC');
+        return $this->db->get()->result_array();
+    }
+
+    public function get_thread_count($parent_message_id)
+    {
+        if (!$this->table_exists_or_log('chat_threads')) {
+            return 0;
+        }
+        $this->db->where('parent_message_id', $parent_message_id);
+        return $this->db->count_all_results(db_prefix() . 'chat_threads');
+    }
 }

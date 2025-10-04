@@ -34,6 +34,50 @@ $queries = [
         PRIMARY KEY (`id`),
         KEY `channel_id` (`channel_id`),
         KEY `user_id` (`user_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;',
+    // chat_files table for file attachments
+    'CREATE TABLE IF NOT EXISTS `' . db_prefix() . 'chat_files` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT,
+        `message_id` INT(11) NOT NULL,
+        `filename` VARCHAR(255) NOT NULL,
+        `filepath` VARCHAR(500) NOT NULL,
+        `filesize` INT(11) NOT NULL,
+        `filetype` VARCHAR(100) NOT NULL,
+        `uploaded_by` INT(11) NOT NULL,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        KEY `message_id` (`message_id`),
+        KEY `uploaded_by` (`uploaded_by`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;',
+    // chat_reactions table for emoji reactions
+    'CREATE TABLE IF NOT EXISTS `' . db_prefix() . 'chat_reactions` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT,
+        `message_id` INT(11) NOT NULL,
+        `user_id` INT(11) NOT NULL,
+        `emoji` VARCHAR(10) NOT NULL,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        KEY `message_id` (`message_id`),
+        KEY `user_id` (`user_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;',
+    // chat_threads table for message threading
+    'CREATE TABLE IF NOT EXISTS `' . db_prefix() . 'chat_threads` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT,
+        `parent_message_id` INT(11) NOT NULL,
+        `message_id` INT(11) NOT NULL,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        KEY `parent_message_id` (`parent_message_id`),
+        KEY `message_id` (`message_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;',
+    // chat_typing table for typing indicators
+    'CREATE TABLE IF NOT EXISTS `' . db_prefix() . 'chat_typing` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT,
+        `channel_id` INT(11) NOT NULL,
+        `user_id` INT(11) NOT NULL,
+        `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `unique_channel_user` (`channel_id`, `user_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8;'
 ];
 

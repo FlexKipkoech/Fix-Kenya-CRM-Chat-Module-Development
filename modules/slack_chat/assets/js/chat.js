@@ -129,6 +129,12 @@
                     if (resp.csrf && resp.csrf.name && resp.csrf.hash) {
                         updateCsrf(resp.csrf.name, resp.csrf.hash);
                     }
+                    // Upload file if selected
+                    var fileInput = $('#file-input')[0];
+                    if (fileInput.files.length > 0) {
+                        uploadFile(resp.message.id, fileInput.files[0]);
+                        fileInput.value = ''; // Clear file input
+                    }
                 } else {
                     alert('Message failed to send: ' + (resp.error || 'Unknown error'));
                     $input.val(msg); // Restore message on failure
@@ -141,6 +147,97 @@
                 $('#chat-send').prop('disabled', false);
                 $input.focus();
             });
+        });
+
+        // File upload function
+        function uploadFile(messageId, file) {
+            var formData = new FormData();
+            formData.append('message_id', messageId);
+            formData.append('file', file);
+            formData.append(config.csrfName, config.csrfHash);
+
+            $.ajax({
+                url: config.baseUrl + '/upload_file',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(resp) {
+                    if (resp.success) {
+                        // Update message with file attachment
+                        var $msg = $('#chat-messages .chat-message[data-message-id="' + messageId + '"]');
+                        var fileHtml = '<div class="file-attachment"><a href="' + config.baseUrl + '/download_file/' + resp.file_id + '" target="_blank"><i class="fa fa-file"></i> ' + resp.filename + '</a></div>';
+                        $msg.find('.chat-message-body').after(fileHtml);
+                    } else {
+                        alert('File upload failed: ' + resp.error);
+                    }
+                },
+                error: function(xhr) {
+                    alert('File upload error: ' + xhr.responseJSON.error);
+                }
+            });
+        }
+
+        // Typing indicator
+        var typingTimer;
+        $('#chat-input').on('input', function(){
+            clearTimeout(typingTimer);
+            setTyping(true);
+            typingTimer = setTimeout(function(){
+                setTyping(false);
+            }, 3000);
+        });
+
+        function setTyping(isTyping) {
+            $.post(config.baseUrl + '/typing_status', addCsrf({channel_id: config.channelId, is_typing: isTyping ? '1' : '0'}), function(resp){
+                if (resp.success) {
+                    updateTypingIndicator(resp.typing_users);
+                }
+            }, 'json');
+        }
+
+        function updateTypingIndicator(typingUsers) {
+            var $indicator = $('#typing-indicator');
+            if (typingUsers.length > 0) {
+                var names = typingUsers.map(function(id){ return 'User ' + id; }).join(', ');
+                $indicator.text(names + ' is typing...').show();
+            } else {
+                $indicator.hide();
+            }
+        }
+
+        // Reaction buttons
+        $(document).on('click', '.reaction-btn', function(){
+            var $btn = $(this);
+            var emoji = $btn.data('emoji');
+            var messageId = $btn.closest('.chat-message').data('message-id');
+
+            $.post(config.baseUrl + '/add_reaction', addCsrf({message_id: messageId, emoji: emoji}), function(resp){
+                if (resp.success) {
+                    updateReactions(messageId, resp.reactions);
+                }
+            }, 'json');
+        });
+
+        function updateReactions(messageId, reactions) {
+            var $msg = $('#chat-messages .chat-message[data-message-id="' + messageId + '"]');
+            var $reactions = $msg.find('.chat-message-reactions');
+            if ($reactions.length === 0) {
+                $reactions = $('<div class="chat-message-reactions"></div>');
+                $msg.append($reactions);
+            }
+            $reactions.empty();
+            reactions.forEach(function(r){
+                var html = '<span class="reaction-bubble" data-emoji="' + r.emoji + '">' + r.emoji + ' ' + r.count + '</span>';
+                $reactions.append(html);
+            });
+        }
+
+        // Thread buttons
+        $(document).on('click', '.thread-btn', function(){
+            var messageId = $(this).closest('.chat-message').data('message-id');
+            // For simplicity, just alert. In a full implementation, open a modal or panel
+            alert('Thread replies for message ' + messageId + ' - implement modal here');
         });
 
         $('#chat-channels').on('click', '.channel-item a', function(e){

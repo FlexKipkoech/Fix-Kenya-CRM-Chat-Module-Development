@@ -1,11 +1,17 @@
-.chat-messages { height: 400px; overflow-y: auto; border: 1px solid #e5e5e5; padding: 12px; background: #fff; }
-.chat-message { margin-bottom: 12px; max-width: 78%; padding:8px 12px; border-radius:8px; }
-.chat-message.mine { background: #daf5e6; margin-left: auto; text-align: right; }
-.chat-message.theirs { background: #f1f1f1; margin-right: auto; text-align: left; }
-.chat-message-user { font-weight: 600; font-size: 13px; margin-bottom:4px; }
-.chat-message-body { font-size: 14px; }
-.chat-message-time { font-size: 11px; margin-top:6px; }
-#chat-input { resize: none; }
+.chat-message-actions { display: none; margin-top: 5px; }
+.chat-message:hover .chat-message-actions { display: block; }
+.reaction-btn { padding: 2px 5px; font-size: 14px; }
+.chat-message-reactions { margin-top: 5px; }
+.reaction-bubble { display: inline-block; background: #f0f0f0; border-radius: 12px; padding: 2px 6px; margin-right: 4px; font-size: 12px; cursor: pointer; }
+.reaction-bubble:hover { background: #e0e0e0; }
+.file-attachment { margin-top: 5px; }
+.file-attachment a { color: #007bff; text-decoration: none; }
+.file-attachment a:hover { text-decoration: underline; }
+.thread-indicator { margin-top: 5px; font-size: 12px; color: #666; }
+.thread-btn { font-size: 12px; }
+#typing-indicator { font-style: italic; color: #999; }
+.btn-file { position: relative; overflow: hidden; }
+.btn-file input[type=file] { position: absolute; top: 0; right: 0; min-width: 100%; min-height: 100%; font-size: 100px; text-align: right; filter: alpha(opacity=0); opacity: 0; outline: none; background: white; cursor: inherit; display: block; }
 
 /* Layout adjustments to avoid overlapping Perfex sidebar */
 .chat-wrapper {

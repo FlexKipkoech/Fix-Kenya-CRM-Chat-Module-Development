@@ -194,4 +194,180 @@ class Slack_chat extends AdminController
         }
         show_404();
     }
+
+    // File upload endpoint
+    public function upload_file()
+    {
+        if ($this->input->method() !== 'post' || !$this->input->is_ajax_request()) {
+            show_404();
+            return;
+        }
+
+        $message_id = $this->input->post('message_id');
+        if (empty($message_id)) {
+            echo json_encode(['success' => false, 'error' => 'missing_message_id']);
+            return;
+        }
+
+        if (empty($_FILES['file'])) {
+            echo json_encode(['success' => false, 'error' => 'no_file_uploaded']);
+            return;
+        }
+
+        $file = $_FILES['file'];
+        $max_size = 10 * 1024 * 1024; // 10MB
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+        if ($file['size'] > $max_size) {
+            echo json_encode(['success' => false, 'error' => 'file_too_large']);
+            return;
+        }
+
+        if (!in_array($file['type'], $allowed_types)) {
+            echo json_encode(['success' => false, 'error' => 'invalid_file_type']);
+            return;
+        }
+
+        // Create upload directory if not exists
+        $upload_dir = FCPATH . 'modules/slack_chat/uploads/';
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+
+        $filename = uniqid() . '_' . basename($file['name']);
+        $filepath = $upload_dir . $filename;
+
+        if (move_uploaded_file($file['tmp_name'], $filepath)) {
+            $file_data = [
+                'filename'    => $file['name'],
+                'filepath'    => 'modules/slack_chat/uploads/' . $filename,
+                'filesize'    => $file['size'],
+                'filetype'    => $file['type'],
+                'uploaded_by' => get_staff_user_id(),
+            ];
+            $file_id = $this->Chat_model->upload_file($message_id, $file_data);
+            if ($file_id) {
+                echo json_encode(['success' => true, 'file_id' => $file_id, 'filename' => $file['name'], 'filetype' => $file['type']]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'db_error']);
+            }
+        } else {
+            echo json_encode(['success' => false, 'error' => 'upload_failed']);
+        }
+    }
+
+    // Download file
+    public function download_file($file_id)
+    {
+        $file = $this->Chat_model->get_file_by_id($file_id);
+        if (!$file) {
+            show_404();
+            return;
+        }
+
+        $filepath = FCPATH . $file['filepath'];
+        if (!file_exists($filepath)) {
+            show_404();
+            return;
+        }
+
+        // Force download
+        header('Content-Type: ' . $file['filetype']);
+        header('Content-Disposition: attachment; filename="' . $file['filename'] . '"');
+        header('Content-Length: ' . $file['filesize']);
+        readfile($filepath);
+        exit;
+    }
+
+    // Add reaction
+    public function add_reaction()
+    {
+        if ($this->input->method() !== 'post' || !$this->input->is_ajax_request()) {
+            show_404();
+            return;
+        }
+
+        $message_id = $this->input->post('message_id');
+        $emoji = $this->input->post('emoji');
+        $user_id = get_staff_user_id();
+
+        if (empty($message_id) || empty($emoji)) {
+            echo json_encode(['success' => false, 'error' => 'missing_params']);
+            return;
+        }
+
+        $result = $this->Chat_model->add_reaction($message_id, $user_id, $emoji);
+        echo json_encode(['success' => true, 'added' => ($result !== false), 'reactions' => $this->Chat_model->get_reactions($message_id)]);
+    }
+
+    // Typing status
+    public function typing_status()
+    {
+        if ($this->input->method() !== 'post' || !$this->input->is_ajax_request()) {
+            show_404();
+            return;
+        }
+
+        $channel_id = $this->input->post('channel_id');
+        $is_typing = $this->input->post('is_typing') == '1';
+        $user_id = get_staff_user_id();
+
+        if ($is_typing) {
+            $this->Chat_model->set_typing($channel_id, $user_id);
+        } else {
+            $this->Chat_model->clear_typing($channel_id, $user_id);
+        }
+
+        $typing_users = $this->Chat_model->get_typing_users($channel_id);
+        echo json_encode(['success' => true, 'typing_users' => $typing_users]);
+    }
+
+    // Get thread replies
+    public function get_thread($message_id)
+    {
+        if (!$this->input->is_ajax_request()) {
+            show_404();
+            return;
+        }
+
+        $replies = $this->Chat_model->get_thread_replies($message_id);
+        foreach ($replies as &$r) {
+            $staff = $this->db->get_where(db_prefix() . 'staff', ['staffid' => $r['user_id']])->row_array();
+            $r['user_name'] = $staff ? trim($staff['firstname'] . ' ' . $staff['lastname']) : ('User ' . $r['user_id']);
+        }
+        echo json_encode(['success' => true, 'replies' => $replies]);
+    }
+
+    // Add thread reply
+    public function add_thread_reply()
+    {
+        if ($this->input->method() !== 'post' || !$this->input->is_ajax_request()) {
+            show_404();
+            return;
+        }
+
+        $parent_id = $this->input->post('parent_message_id');
+        $channel_id = $this->input->post('channel_id');
+        $message = trim($this->input->post('message'));
+        $user_id = get_staff_user_id();
+
+        if (empty($parent_id) || empty($message) || empty($channel_id)) {
+            echo json_encode(['success' => false, 'error' => 'missing_params']);
+            return;
+        }
+
+        $message_data = [
+            'channel_id' => $channel_id,
+            'user_id'    => $user_id,
+            'message'    => $message,
+        ];
+
+        $message_id = $this->Chat_model->add_thread_reply($parent_id, $message_data);
+        if ($message_id) {
+            $msg = $this->Chat_model->get_message_with_user($message_id);
+            echo json_encode(['success' => true, 'message' => $msg]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'failed_to_add_reply']);
+        }
+    }
 }
